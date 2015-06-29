@@ -343,7 +343,7 @@
             mat4.identity(mvMatrix);
 
             // == Square
-            // Move to the position where square started
+            // Move to the position where cube started
             mat4.translate(mvMatrix, [0.0, 0.0, z]);
             mvPushMatrix();
             mat4.rotate(mvMatrix, degToRad(xRot), [1, 0, 0]);
