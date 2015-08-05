@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>WebGl Tutorial One</title>
+    <script type="text/javascript" src="/tutorial_01/glMatrix-0.9.5.min.js"></script>
+
+    <!-- Fragment Shader: -->
+    <script id="shader-fs" type="x-shader/x-fragment">
+        precision mediump float;
+
+        void main(void) {
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    </script>
+
+    <!-- Vertex Shader, can be thought of as class
+                        This will be called for every vertex. -->
+    <script id="shader-vs" type="x-shader/x-vertex">
+        attribute vec3 aVertexPosition;
+
+        uniform mat4 uMVMatrix;
+        uniform mat4 uPMatrix;
+
+        void main(void) {
+            gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        }
+    </script>
+
+    <script type="text/javascript">
+        window.requestAnimFrame = (function() {
+            return window.requestAnimationFrame ||
+                    window.webkitRequestAnimationFrame ||
+                    window.mozRequestAnimationFrame ||
+                    window.oRequestAnimationFrame ||
+                    window.msRequestAnimationFrame ||
+                    function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+                        window.setTimeout(callback, 1000/60);
+                    };
+        })();
+
+    </script>
+
+    <script type="text/javascript">
+        var gl;
+
+        var circleVertexPositionBuffer;
+
+        // Move Matrix:
+        var mvMatrix = mat4.create();
+        // Projection Matrix:
+        var pMatrix = mat4.create();
+
+        var shaderProgram;
+
+        var initialY = 1;
+        var yTranslate = initialY;
+
+        var lastTime = 0;
+
+
+
+        function webGLStart() {
+            var canvas = document.getElementById("tutorialCanvas");
+
+            initGL(canvas);
+            initShaders();
+            initBuffers();
+
+            gl.clearColor(0.0, 0.0, 0.0, 0.5);
+            gl.enable(gl.DEPTH_TEST);
+
+//            drawScene();
+            tick();
+        }
+
+        function initGL(canvas) {
+            try {
+                gl = canvas.getContext("webgl");
+                gl.viewportWidth = canvas.width;
+                gl.viewportHeight = canvas.height;
+            } catch (e) {
+                console.error("Error getting webgl context: ", e);
+            }
+            if (!gl) {
+                alert("Could not init webgl :(");
+            }
+        }
+
+
+        function initShaders() {
+            var fragmentShader = getShader(gl, "shader-fs");
+            var vertexShader = getShader(gl, "shader-vs");
+
+            // Program is a bit of code that gtets executed on the graphics card
+            shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                alert("Could not initialise shaders");
+            }
+
+            gl.useProgram(shaderProgram);
+
+            shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+            gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+            shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+            shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+        }
+
+        function getShader(gl, id) {
+            var shaderScript = document.getElementById(id);
+            if (!shaderScript) {
+                return null;
+            }
+            var str = "";
+            var k = shaderScript.firstChild;
+            while (k) {
+                if (k.nodeType == 3) {
+                    str += k.textContent;
+                }
+                k = k.nextSibling;
+            }
+
+            var shader;
+            if (shaderScript.type == "x-shader/x-fragment") {
+                shader = gl.createShader(gl.FRAGMENT_SHADER)
+            }
+            else if (shaderScript.type == "x-shader/x-vertex") {
+                shader = gl.createShader(gl.VERTEX_SHADER);
+            }
+            else {
+                return null;
+            }
+
+            gl.shaderSource(shader, str);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+                alert(gl.getShaderInfoLog(shader));
+                return null;
+            }
+            return shader;
+        }
+
+        function initBuffers() {
+            // Draw circle
+            circleVertexPositionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, circleVertexPositionBuffer);
+            var numCircleVertices = 50;
+            var vertices = getCircleVertices(numCircleVertices);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+            circleVertexPositionBuffer.itemSize = 3;
+            circleVertexPositionBuffer.numItems = numCircleVertices;
+        }
+
+        function tick() {
+            requestAnimFrame(tick);
+            drawScene();
+//            animate();
+        }
+
+//        function animate() {
+//            yTranslate = yTranslate - 0.5;
+
+//            var timeNow = new Date().getTime();
+//            if (lastTime != 0) {
+//                var elapsed = timeNow - lastTime;
+//
+//                yTranslate = yTranslate - 0.5;
+//            }
+//            lastTime = timeNow;
+//        }
+
+        var translateAmount = 0;
+//        var acceleration = 9.8;
+        var acceleration = 0.00001;
+        var firstTime = new Date().getTime();
+        /**
+         * distance travelled, when initial elocity is zero
+         * s = 1/2 a t^2
+         *
+         * where:
+         *  t: time
+         *  a: acceleration
+         */
+        function animate() {
+            var timeNow = new Date().getTime();
+//            if (lastTime != 0) {
+//                var elapsed = timeNow - lastTime;
+//            } else {
+//                elapsed = 0;
+//            }
+            var elapsed = timeNow - firstTime;
+
+//            translateAmount = 0.5 * acceleration * Math.pow(elapsed, 2);
+            yTranslate = initialY - ( 0.5 * acceleration * Math.pow(elapsed, 2));
+            console.log("ytranslate: ", yTranslate);
+            // Translate therefore multiply by -1:
+//            yTranslate = -1 * translateAmount;
+
+        }
+
+        function drawScene() {
+            gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            mat4.perspective(45, gl.viewportWidth / gl.viewportHeight,  0.1, 100.0, pMatrix);
+//            mat4.ortho(0, gl.viewportWidth, 0, gl.viewportHeight, 0.1, 100.0, pMatrix);
+//            mat4.ortho(pMatrix, -1.0, 1.0, -1.0, 1.0, 0.1, 100);
+//            pMatrix = mat4.ortho(-3,3,-3,3,9,15);
+            mat4.identity(mvMatrix);
+
+            // == Circle
+            // Move to position where started
+//            mat4.translate(mvMatrix, [-1.0, yTranslate, 0]);
+//            mat4.translate(mvMatrix, [3, 4, 0]);
+            mat4.translate(mvMatrix, [0, 0, -3]);
+            gl.bindBuffer(gl.ARRAY_BUFFER, circleVertexPositionBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, circleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            setMatrixUniforms();
+            // Draw the circle
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, circleVertexPositionBuffer.numItems);
+        }
+
+        function setMatrixUniforms() {
+            gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+            gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+        }
+
+        function getCircleVertices(numberPoints) {
+            var circleRadius = 1;
+            var vertices = [
+                0.0,  0.0,  0.0,
+                circleRadius,  0.0,  0.0
+            ];
+            var pointsToAdd = numberPoints - 2;
+            var degPerTri = (2 * Math.PI) / pointsToAdd;
+
+            for(var i = 0; i < pointsToAdd; i++) {
+                var index = 2*3 + i*3;
+                var angle = degPerTri * (i+1);
+
+                vertices[index] = circleRadius * Math.cos(angle);
+                vertices[index+1] = circleRadius * Math.sin(angle);
+                vertices[index+2] = 0;
+            }
+            return vertices
+        }
+
+    </script>
+
+</head>
+<body onload="webGLStart()">
+<canvas id="tutorialCanvas" style="border: none;" width="10" height="10"></canvas>
+
+</body>
+<script type="text/javascript">
+    // Get canvas and make it full screen
+    var canvas = document.getElementById('tutorialCanvas');
+    canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth;
+</script>
+</html>
