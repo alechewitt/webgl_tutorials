@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <script>
+        "use strict";
+
+        var vertexShaderSource =
+                "attribute vec2 a_coords;\n" +
+                "uniform float u_width;\n" +
+                "uniform float u_height;\n" +
+                "uniform vec2 u_translation;\n" +
+                "void main() {\n" +
+                "   float x = -1.0 + 2.0*((a_coords.x + u_translation.x) / u_width);\n" +
+                "   float y = 1.0 - 2.0*((a_coords.y + u_translation.y) / u_height);\n" +
+                "   gl_Position = vec4(x, y, 0.0, 1.0);\n" +
+                "}\n";
+
+        var fragmentShaderSource =
+                "precision mediump float;\n" +
+                "uniform vec3 u_color;\n" +
+                "void main() {\n" +
+                "   gl_FragColor = vec4(u_color, 1.0);\n" +
+                "}\n";
+
+        var canvas;
+
+        var gl;
+
+        // Location of a_coords in the vertex shader
+        var attributeCoords;
+        // Location of u_width in vertex shader
+        var uniformWidth;
+        // Location of u_height in vertex shader
+        var uniformHeight;
+        // Location of u_translation in vertex shader
+        var uniformTranslation;
+        // Location of u_color in fragment shader
+        var uniformColor;
+
+        // Radius of circle in pixels;
+        var CIRCLE_RADIUS;
+
+        var CIRCLES_PER_ROW;
+
+        var margin = 4;
+
+        // a Vertext Buffer Object to hold the values for coords of a circle
+        var bufferCoordsCircle;
+
+        var colors = [
+            [ 1, 0, 0 ],
+            [ 0, 0.8, 0 ],
+            [ 0, 0, 1 ],
+            [ 0, 1, 1 ],
+            [ 1, 0, 1 ],
+            [ 1, 1, 0 ],
+            [ 0, 0, 0 ],
+            [ 0.5, 0.5, 0.5 ]
+        ];
+
+        function calculateCirclesRadius() {
+            // We want the circles to be no smaller than 25 px in diameter
+            var circleRadiusAvg = 40;
+
+            // Calculate number circles per row
+            var spacePerCircle = (canvas.width - margin) / (circleRadiusAvg + margin);
+            CIRCLES_PER_ROW = Math.floor(spacePerCircle);
+
+            // Calculate circle sizes
+            var remainingSpace = canvas.width - ((CIRCLES_PER_ROW * margin) + margin);
+            CIRCLE_RADIUS = (remainingSpace / CIRCLES_PER_ROW) / 2;
+
+        }
+
+        function drawCircles() {
+            gl.clearColor(1,1,1,1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            var offset = margin + (CIRCLE_RADIUS * 2);
+
+            var yTranslation = margin + CIRCLE_RADIUS;
+            var xTranslation = margin + CIRCLE_RADIUS;
+            for (var i = 0; i < 20; i++) {
+                for (var k = 0; k < CIRCLES_PER_ROW; k++) {
+                    // Set the u_translation variable
+                    gl.uniform2f(uniformTranslation, xTranslation, yTranslation);
+
+                    // Random color:
+                    var colorInt = Math.floor(Math.random() * colors.length);
+                    gl.uniform3fv(uniformColor, colors[colorInt]);
+                    // Draw a circle
+                    gl.bindBuffer(gl.ARRAY_BUFFER, bufferCoordsCircle);
+                    gl.vertexAttribPointer(attributeCoords, 2, gl.FLOAT, false, 0, 0);
+                    gl.drawArrays(gl.TRIANGLE_FAN, 0, 32);
+                    xTranslation += offset;
+                }
+                yTranslation += offset;
+                xTranslation = margin + CIRCLE_RADIUS;
+            }
+
+
+        }
+        /**
+         * Circle approximated as a 32 vertex regular polygon with two coordinates for each vertex
+         */
+        function createCircleBufferData() {
+            // Float32Array to hold the coordinates
+            var coords = new Float32Array(64);
+            var k = 0;
+            for (var i = 0; i < 32; i++) {
+                var angle = i / 32 * 2*Math.PI;
+                coords[k++] = CIRCLE_RADIUS * Math.cos(angle); // x-coor of vertex
+                coords[k++] = CIRCLE_RADIUS * Math.sin(angle); // y-coord of vertex
+            }
+
+            bufferCoordsCircle = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufferCoordsCircle);
+            gl.bufferData(gl.ARRAY_BUFFER, coords, gl.STATIC_DRAW);
+        }
+
+
+        function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
+            // Compile Vertex Shader:
+            var vsh = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vsh, vertexShaderSource);
+            gl.compileShader(vsh);
+            if (!gl.getShaderParameter(vsh, gl.COMPILE_STATUS)) {
+                throw "Error in vertex shader: " + gl.getShaderInfoLog(vsh);
+            }
+
+            // Compile Fragment Shader
+            var fsh = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fsh, fragmentShaderSource);
+            gl.compileShader(fsh);
+            if (!gl.getShaderParameter(fsh, gl.COMPILE_STATUS)) {
+                throw "Error in Fragment Shader: " + gl.getShaderInfoLog(fsh);
+            }
+
+            // Create Program and attach the compiled shaders
+            var prog = gl.createProgram();
+            gl.attachShader(prog, vsh);
+            gl.attachShader(prog, fsh);
+            gl.linkProgram(prog);
+            if( !gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+                throw "LInk error in program: " + gl.getProgramInfoLog(prog);
+            }
+            return prog;
+
+
+        }
+
+        function initGL() {
+            var prog = createProgram(gl, vertexShaderSource, fragmentShaderSource);
+            gl.useProgram(prog);
+            attributeCoords = gl.getAttribLocation(prog, "a_coords");
+            gl.enableVertexAttribArray(attributeCoords);
+            uniformWidth = gl.getUniformLocation(prog, "u_width");
+            uniformHeight = gl.getUniformLocation(prog, "u_height");
+            uniformColor = gl.getUniformLocation(prog, "u_color");
+            uniformTranslation = gl.getUniformLocation(prog, "u_translation");
+
+            // Set the value for the uniform varibles
+            gl.uniform1f(uniformWidth, canvas.width);
+            gl.uniform1f(uniformHeight, canvas.height);
+
+        }
+
+        /**
+         * Init the webgl canvas
+         */
+        function init() {
+            canvas = document.getElementById("webglcanvas");
+            // Set canvas width and height:
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            var options = {
+                alpha: false,
+                depth: false
+            };
+
+            gl = canvas.getContext("webgl", options);
+
+            initGL();
+            calculateCirclesRadius();
+            createCircleBufferData();
+            drawCircles();
+        }
+    </script>
+    <style>
+        body{
+            margin: 0;
+        }
+    </style>
+</head>
+<body onload="init()">
+<canvas id="webglcanvas"></canvas>
+</body>
+</html>
