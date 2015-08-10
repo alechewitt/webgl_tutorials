@@ -47,18 +47,18 @@
 
         var numVerticesPerCircle = 64;
 
-        var margin = 5 *  (window.devicePixelRatio || 1);
+        var margin = 5 * (window.devicePixelRatio || 1);
 
         // a Vertext Buffer Object to hold the values for coords of a circle
         var bufferCoordsCircle;
 
         var colors = [
-            [0.9568627451,0.262745098,0.2117647059],
-            [0.1294117647,0.5882352941,0.9529411765],
-            [1,0.5960784314,0],
-            [0.9921568627,0.8470588235,0.2078431373],
-            [0.6117647059,0.1529411765,0.6901960784],
-            [0.3921568627,0.8666666667,0.0901960784]
+            [0.9568627451, 0.262745098, 0.2117647059],
+            [0.1294117647, 0.5882352941, 0.9529411765],
+            [1, 0.5960784314, 0],
+            [0.9921568627, 0.8470588235, 0.2078431373],
+            [0.6117647059, 0.1529411765, 0.6901960784],
+            [0.3921568627, 0.8666666667, 0.0901960784]
         ];
 
         function calculateCirclesRadius() {
@@ -189,8 +189,8 @@
             canvas.height = desiredHeightInCSSPixels * devicePixelRatio;
 
             var options = {
-                alpha: false,
-                depth: false,
+                alpha    : false,
+                depth    : false,
                 antialias: true
             };
 
@@ -199,12 +199,17 @@
             initGL();
             calculateCirclesRadius();
             createCircleBufferData();
-            drawCircles();
+            animate();
+        }
+
+        function animate() {
+            setTimeout(animate, 500);
+            drawCircles()
         }
     </script>
     <style>
         body {
-            margin : 0;
+            margin   : 0;
             overflow : hidden;
         }
     </style>
