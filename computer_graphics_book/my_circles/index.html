@@ -3,6 +3,7 @@
 <head lang="en">
     <meta charset="UTF-8">
     <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
     <script>
         "use strict";
 
@@ -44,25 +45,25 @@
 
         var CIRCLES_PER_ROW;
 
-        var margin = 4;
+        var numVerticesPerCircle = 64;
+
+        var margin = 5 *  (window.devicePixelRatio || 1);
 
         // a Vertext Buffer Object to hold the values for coords of a circle
         var bufferCoordsCircle;
 
         var colors = [
-            [ 1, 0, 0 ],
-            [ 0, 0.8, 0 ],
-            [ 0, 0, 1 ],
-            [ 0, 1, 1 ],
-            [ 1, 0, 1 ],
-            [ 1, 1, 0 ],
-            [ 0, 0, 0 ],
-            [ 0.5, 0.5, 0.5 ]
+            [0.9568627451,0.262745098,0.2117647059],
+            [0.1294117647,0.5882352941,0.9529411765],
+            [1,0.5960784314,0],
+            [0.9921568627,0.8470588235,0.2078431373],
+            [0.6117647059,0.1529411765,0.6901960784],
+            [0.3921568627,0.8666666667,0.0901960784]
         ];
 
         function calculateCirclesRadius() {
             // We want the circles to be no smaller than 25 px in diameter
-            var circleRadiusAvg = 40;
+            var circleRadiusAvg = 100;
 
             // Calculate number circles per row
             var spacePerCircle = (canvas.width - margin) / (circleRadiusAvg + margin);
@@ -75,7 +76,7 @@
         }
 
         function drawCircles() {
-            gl.clearColor(1,1,1,1);
+            gl.clearColor(1, 1, 1, 1);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
             var offset = margin + (CIRCLE_RADIUS * 2);
@@ -93,7 +94,7 @@
                     // Draw a circle
                     gl.bindBuffer(gl.ARRAY_BUFFER, bufferCoordsCircle);
                     gl.vertexAttribPointer(attributeCoords, 2, gl.FLOAT, false, 0, 0);
-                    gl.drawArrays(gl.TRIANGLE_FAN, 0, 32);
+                    gl.drawArrays(gl.TRIANGLE_FAN, 0, numVerticesPerCircle);
                     xTranslation += offset;
                 }
                 yTranslation += offset;
@@ -107,10 +108,10 @@
          */
         function createCircleBufferData() {
             // Float32Array to hold the coordinates
-            var coords = new Float32Array(64);
+            var coords = new Float32Array(numVerticesPerCircle * 2);
             var k = 0;
-            for (var i = 0; i < 32; i++) {
-                var angle = i / 32 * 2*Math.PI;
+            for (var i = 0; i < numVerticesPerCircle; i++) {
+                var angle = i / numVerticesPerCircle * 2 * Math.PI;
                 coords[k++] = CIRCLE_RADIUS * Math.cos(angle); // x-coor of vertex
                 coords[k++] = CIRCLE_RADIUS * Math.sin(angle); // y-coord of vertex
             }
@@ -143,7 +144,7 @@
             gl.attachShader(prog, vsh);
             gl.attachShader(prog, fsh);
             gl.linkProgram(prog);
-            if( !gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+            if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
                 throw "LInk error in program: " + gl.getProgramInfoLog(prog);
             }
             return prog;
@@ -173,11 +174,24 @@
         function init() {
             canvas = document.getElementById("webglcanvas");
             // Set canvas width and height:
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+
+
+            var desiredWidthInCSSPixels = window.innerWidth;
+            var desiredHeightInCSSPixels = window.innerHeight;
+            // set the display size of the canvas.
+            canvas.style.width = desiredWidthInCSSPixels + "px";
+            canvas.style.height = desiredHeightInCSSPixels + "px";
+
+            // set the size of the drawingBuffer
+            var devicePixelRatio = window.devicePixelRatio || 1;
+//            var devicePixelRatio = 1;
+            canvas.width = desiredWidthInCSSPixels * devicePixelRatio;
+            canvas.height = desiredHeightInCSSPixels * devicePixelRatio;
+
             var options = {
                 alpha: false,
-                depth: false
+                depth: false,
+                antialias: true
             };
 
             gl = canvas.getContext("webgl", options);
@@ -189,12 +203,14 @@
         }
     </script>
     <style>
-        body{
-            margin: 0;
+        body {
+            margin : 0;
+            overflow : hidden;
         }
     </style>
 </head>
 <body onload="init()">
 <canvas id="webglcanvas"></canvas>
+<!--<canvas id="webglcanvas" width="700" height="500"></canvas>-->
 </body>
 </html>
