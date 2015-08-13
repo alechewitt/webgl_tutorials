@@ -49,6 +49,8 @@
 
         var margin = 5 * (window.devicePixelRatio || 1);
 
+        var circles = [];
+
         // a Vertext Buffer Object to hold the values for coords of a circle
         var bufferCoordsCircle;
 
@@ -75,37 +77,62 @@
             CIRCLE_RADIUS = (remainingSpace / CIRCLES_PER_ROW) / 2;
 
             console.log("Circle radius: ", CIRCLE_RADIUS);
-
-
         }
 
-        function drawCircles() {
-            gl.clearColor(1, 1, 1, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT);
+        function createCircleArrays() {
 
             var offset = margin + (CIRCLE_RADIUS * 2);
 
             var yTranslation = margin + CIRCLE_RADIUS;
             var xTranslation = margin + CIRCLE_RADIUS;
             for (var i = 0; i < 20; i++) {
+                var circleRow = [];
                 for (var k = 0; k < CIRCLES_PER_ROW; k++) {
-                    // Set the u_translation variable
-                    gl.uniform2f(uniformTranslation, xTranslation, yTranslation);
 
                     // Random color:
                     var colorInt = Math.floor(Math.random() * colors.length);
-                    gl.uniform3fv(uniformColor, colors[colorInt]);
+
+                    // Add it to our array of circles
+                    var circleObj = {
+                        x     : xTranslation,
+                        y     : yTranslation,
+                        color : colors[colorInt],
+                        erased: false
+
+                    };
+                    circleRow.push(circleObj);
+
+                    xTranslation += offset;
+                }
+                circles.push(circleRow);
+
+                yTranslation += offset;
+                xTranslation = margin + CIRCLE_RADIUS;
+            }
+        }
+        function drawCircles() {
+            gl.clearColor(1, 1, 1, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+            for (var i = 0; i < circles.length; i++) {
+                for (var k = 0; k < circles[i].length; k++) {
+                    if (circles[i][k].erased) {
+                        // This circle has been erased. Lets not draw it and continue to next one.
+                        continue;
+                    }
+                    // Set the u_translation variable
+                    gl.uniform2f(uniformTranslation, circles[i][k].x, circles[i][k].y);
+
+                    // Random color:
+                    gl.uniform3fv(uniformColor, circles[i][k].color);
+
                     // Draw a circle
                     gl.bindBuffer(gl.ARRAY_BUFFER, bufferCoordsCircle);
                     gl.vertexAttribPointer(attributeCoords, 2, gl.FLOAT, false, 0, 0);
                     gl.drawArrays(gl.TRIANGLE_FAN, 0, numVerticesPerCircle);
-                    xTranslation += offset;
                 }
-                yTranslation += offset;
-                xTranslation = margin + CIRCLE_RADIUS;
             }
-
-
         }
         /**
          * Circle approximated as a 32 vertex regular polygon with two coordinates for each vertex
@@ -188,7 +215,6 @@
 
             // set the size of the drawingBuffer
             var devicePixelRatio = window.devicePixelRatio || 1;
-//            var devicePixelRatio = 1;
             canvas.width = desiredWidthInCSSPixels * devicePixelRatio;
             canvas.height = desiredHeightInCSSPixels * devicePixelRatio;
 
@@ -206,13 +232,40 @@
             initGL();
             calculateCirclesRadius();
             createCircleBufferData();
-            animate();
+            createCircleArrays();
+            drawCircles();
+            canvas.addEventListener("mousedown", doMouseDown, false);
+
         }
 
-        function animate() {
-            setTimeout(animate, 50);
-            drawCircles()
+        function doMouseDown(event) {
+            console.log(event);
+            var x = event.clientX * (window.devicePixelRatio || 1);
+            var y = event.clientY * (window.devicePixelRatio || 1);
+            console.log('X: ', x);
+            console.log('Y: ', y);
+
+            console.log("Circles: ", circles);
+            for (var row = 0; row < circles.length; row++) {
+                var lastRow = row === circles.length - 1;
+                if (lastRow || y < circles[row + 1][0].y - CIRCLE_RADIUS) {
+                    console.log("Row clicked = ", row);
+                    // Now lets find x clicked:
+                    for (var col = 0; col < circles[row].length; col++) {
+                        var lastCol = col === circles[row].length - 1;
+                        if (lastCol || x < circles[row][col + 1].x - CIRCLE_RADIUS) {
+                            // We have row and col of our circle
+                            // Lets set it to erased
+                            circles[row][col].erased = true;
+                            drawCircles();
+                            return;
+                        }
+                    }
+                }
+            }
         }
+
+
     </script>
     <style>
         body {
