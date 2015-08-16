@@ -12,10 +12,11 @@
                 "attribute vec2 a_coords;\n" +
                 "uniform float u_width;\n" +
                 "uniform float u_height;\n" +
-                "uniform vec2 u_translation;\n" +
+                "uniform mat3 u_transform;\n" +
                 "void main() {\n" +
-                "   float x = -1.0 + 2.0 * ((a_coords.x + u_translation.x) / u_width);\n" +
-                "   float y = 1.0 - 2.0 * ((a_coords.y + u_translation.y) / u_height);\n" +
+                "   vec3 transformedCoords = u_transform * vec3(a_coords, 1.0);\n" +
+                "   float x = -1.0 + 2.0 * (transformedCoords.x / u_width);\n" +
+                "   float y = 1.0 - 2.0 * (transformedCoords.y / u_height);\n" +
                 "   gl_Position = vec4(x, y, 0.0, 1.0);\n" +
                 "}\n";
 
@@ -36,8 +37,10 @@
         var uniformWidth;
         // Location of u_height in vertex shader
         var uniformHeight;
-        // Location of u_translation in vertex shader
-        var uniformTranslation;
+
+        // Location of u_transform in vertex shader
+        var uniformTransform;
+
         // Location of u_color in fragment shader
         var uniformColor;
 
@@ -94,14 +97,10 @@
                     var colorInt = Math.floor(Math.random() * colors.length);
 
                     // Add it to our array of circles
-                    var circleObj = {
-                        x     : xTranslation,
-                        y     : yTranslation,
-                        color : colors[colorInt],
-                        erased: false
+                    var circle = new Circle(colors[colorInt]);
+                    circle.translate(xTranslation, yTranslation);
 
-                    };
-                    circleRow.push(circleObj);
+                    circleRow.push(circle);
 
                     xTranslation += offset;
                 }
@@ -118,15 +117,15 @@
 
             for (var i = 0; i < circles.length; i++) {
                 for (var k = 0; k < circles[i].length; k++) {
-                    if (circles[i][k].erased) {
+                    if (circles[i][k].isErased()) {
                         // This circle has been erased. Lets not draw it and continue to next one.
                         continue;
                     }
-                    // Set the u_translation variable
-                    gl.uniform2f(uniformTranslation, circles[i][k].x, circles[i][k].y);
+                    // Set the u_transform variable
+                    gl.uniformMatrix3fv(uniformTransform, false, circles[i][k].getMat3());
 
                     // Random color:
-                    gl.uniform3fv(uniformColor, circles[i][k].color);
+                    gl.uniform3fv(uniformColor, circles[i][k].getColor());
 
                     // Draw a circle
                     gl.bindBuffer(gl.ARRAY_BUFFER, bufferCoordsCircle);
@@ -192,8 +191,7 @@
             uniformWidth = gl.getUniformLocation(prog, "u_width");
             uniformHeight = gl.getUniformLocation(prog, "u_height");
             uniformColor = gl.getUniformLocation(prog, "u_color");
-            uniformTranslation = gl.getUniformLocation(prog, "u_translation");
-
+            uniformTransform = gl.getUniformLocation(prog, "u_transform");
             // Set the value for the uniform varibles
             gl.uniform1f(uniformWidth, canvas.width);
             gl.uniform1f(uniformHeight, canvas.height);
@@ -249,21 +247,35 @@
             console.log("Circles: ", circles);
             for (var row = 0; row < circles.length; row++) {
                 var lastRow = row === circles.length - 1;
-                if (lastRow || y < circles[row + 1][0].y - CIRCLE_RADIUS) {
+                if (lastRow || y < circles[row + 1][0].getCenterY() - CIRCLE_RADIUS) {
                     console.log("Row clicked = ", row);
                     // Now lets find x clicked:
                     for (var col = 0; col < circles[row].length; col++) {
                         var lastCol = col === circles[row].length - 1;
-                        if (lastCol || x < circles[row][col + 1].x - CIRCLE_RADIUS) {
+                        if (lastCol || x < circles[row][col + 1].getCenterX() - CIRCLE_RADIUS) {
                             // We have row and col of our circle
                             // Lets set it to erased
-                            circles[row][col].erased = true;
-                            drawCircles();
+//                            circles[row][col].erased = true;
+//                            drawCircles();
+                            animateDisappearance(circles[row][col]);
                             return;
                         }
                     }
                 }
             }
+        }
+
+        function animateDisappearance(circle) {
+            if (circle.getScaleFactor() <= 0.01) {
+                circle.erased = true;
+            }
+            else {
+                circle.scale(0.9);
+                window.requestAnimationFrame(function() {
+                    animateDisappearance(circle);
+                });
+            }
+            drawCircles();
         }
 
 
